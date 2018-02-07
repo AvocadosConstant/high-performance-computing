@@ -1,4 +1,4 @@
-# Assignment 1
+# High Performance Parallel k-Nearest Neighbors
 
 The topic of the assignment is implement a parallel k-NN program. The method of parallelization should be threads.
 
