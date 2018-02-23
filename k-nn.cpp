@@ -1,22 +1,32 @@
-#include <iostream>
-#include <cstdlib>
-#include <string>
+#include <vector>
+#include "include/reader.hpp"
+#include "include/ingest.hpp"
 
 const auto ARGC = 5;
 const auto USAGE_STRING =
   "./k-nn n_cores input_file queries_file results_file";
 
-int main(const int argc, char **argv) {
+
+void assert_usage(int argc) {
   if (argc != ARGC) {
     std::cerr << "Execution format: " << USAGE_STRING
       << std::endl << std::endl;
     exit(1);
   }
-  int n_cores = std::stoi(argv[1]);
-  std::string input_file = argv[2];
-  std::string queries_file = argv[3];
-  std::string results_file = argv[4];
+}
 
-  std::cout << n_cores << " core"
-    << (n_cores > 1 ? "s" : "") << std::endl;
+
+int main(const int argc, char **argv) {
+  assert_usage(argc);
+
+  int n_cores = std::stoi(argv[1]);
+  std::cout << "Running with " << n_cores << " cores." << std::endl;
+
+  auto training = parse_data(argv[2]);
+  auto queries = parse_data(argv[3]);
+
+  //print_data(training);
+  //print_data(queries);
+
+  std::cout << training.points.size() << " training points" << std::endl;
 }
