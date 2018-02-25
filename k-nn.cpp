@@ -1,6 +1,7 @@
 #include <vector>
 #include "include/reader.hpp"
 #include "include/ingest.hpp"
+#include "include/tree.hpp"
 
 const auto ARGC = 5;
 const auto USAGE_STRING =
@@ -29,4 +30,7 @@ int main(const int argc, char **argv) {
   //print_data(queries);
 
   std::cout << training.points.size() << " training points" << std::endl;
+
+  KDTree tree(&training.points);
+  std::cout << "Tree size: " << sizeof(tree) << std::endl;
 }

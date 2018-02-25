@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <iomanip>
 #include <vector>
+#include "tree.hpp"
 
 typedef std::vector<std::vector<float>> points_t;
 
