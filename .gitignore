@@ -1,3 +1,6 @@
+# Misc
+*.swp
+
 # Assignment specific
 *.dat
 k-nn
