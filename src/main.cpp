@@ -1,7 +1,7 @@
 #include <vector>
-#include "include/reader.hpp"
-#include "include/ingest.hpp"
-#include "include/tree.hpp"
+#include "reader.hpp"
+#include "ingest.hpp"
+#include "tree.hpp"
 
 const auto ARGC = 5;
 const auto USAGE_STRING =

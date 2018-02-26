@@ -1,19 +1,33 @@
-CXX=g++
-CXXFLAGS=-g -std=c++17 -Wall -Wextra -pedantic
-BIN=k-nn
+CC          = g++
+LD          = g++
+CFLAGS      = -g -std=c++17 -Wall -Wextra -pedantic -Iinclude
+LDFLAGS		= -Wl,--no-as-needed -ldl
 
-SRC=$(wildcard *.cpp)
-OBJ=$(SRC:%.cpp=%.o)
+PROG_NAME   = k-nn
 
-all: $(OBJ)
-	$(CXX) -Wl,--no-as-needed -ldl -o $(BIN) $^
+SRC_DIR     = src
+BUILD_DIR   = build
+BIN_DIR     = .
 
-%.o: %.c
-	$(CXX) $@ -c $<
+SRC_LIST 	= $(wildcard $(SRC_DIR)/*.cpp)
+OBJ_LIST 	= $(BUILD_DIR)/$(notdir $(SRC_LIST:.cpp=.o))
+
+
+.PHONY: all clean $(PROG_NAME) compile
+
+all: $(PROG_NAME)
+
+compile:
+	@echo "\nCompiling..."
+	$(CC) -c $(CFLAGS) $(SRC_LIST) -o $(OBJ_LIST)
+	@echo ""
+
+$(PROG_NAME): compile
+	@echo "Linking..."
+	$(LD) $(LDFLAGS) $(OBJ_LIST) -o $(BIN_DIR)/$@
+	@echo ""
 
 clean:
-	rm -f *.o
-	rm $(BIN)
-
-v: all
-	valgrind -v --leak-check=full ./k-nn
+	@echo "\nCleaning..."
+	rm -f $(BIN_DIR)/$(PROG_NAME) $(BUILD_DIR)/*.o
+	@echo ""
