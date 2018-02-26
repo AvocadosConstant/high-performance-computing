@@ -1,4 +1,4 @@
-CXX=g++-7
+CXX=g++
 CXXFLAGS=-g -std=c++17 -Wall -Wextra -pedantic
 BIN=k-nn
 
