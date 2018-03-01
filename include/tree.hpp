@@ -7,34 +7,38 @@
 #include <numeric>
 #include <algorithm>
 #include <random>
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 
 using points_t = std::vector<std::vector<float>>;
 using int_vec = std::vector<int>;
 
-const int MIN_SAMPLE_SIZE = 100;
+const int MIN_SAMPLE_SIZE = 80;
 
 
 struct Node {
   Node() :
-    parent_{nullptr}, left_{nullptr}, right_{nullptr},
-    index_{-1}, level_{0} {}
+    level_{0}, left_{nullptr}, right_{nullptr} {}
 
-  Node(Node *p, int i, int l) :
-    parent_{p}, left_{nullptr}, right_{nullptr},
-    index_{i}, level_{l} {}
+  Node(int l) :
+    level_{l}, left_{nullptr}, right_{nullptr} {}
 
-  Node *parent_;
-  Node *left_;
-  Node *right_;
-  int index_;
   int level_;
+  int index_;
+  std::unique_ptr<Node> left_;
+  std::unique_ptr<Node> right_;
 };
 
 
 struct Job {
-  Node *parent;
+  Node *node;
   int_vec indices;
+
+  Job(Node *n, int_vec i) :
+    node{n}, indices{i} {};
 };
 
 
@@ -43,15 +47,21 @@ class KDTree {
     KDTree(points_t &p, int d);
 
   private:
-    Node *root_;
+    std::unique_ptr<Node> root_;
     points_t &points_;
     int dims_;
+    std::queue<Job> job_q_;
+    std::mutex job_mtx_;
+    std::condition_variable job_cv_;
+
+    size_t num_nodes_;
+    std::mutex num_mtx_;
 
     int sample_median_index(const int_vec &indices, const int dim);
 
     std::pair<int_vec, int_vec> split(int pivot_i, int_vec &indices, int dim);
 
-    void grow_branch(Job job);
+    void grow_branch(int tid);
 
 };
 

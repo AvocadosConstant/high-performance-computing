@@ -1,16 +1,43 @@
 #include "tree.hpp"
 
-KDTree::KDTree(points_t &p, int d) : points_(p), dims_(d) {
+KDTree::KDTree(points_t &p, int d) : points_(p), dims_(d), num_nodes_(1) {
 
   int_vec indices(points_.size());
   std::iota(indices.begin(), indices.end(), 0);
 
+
   int median = sample_median_index(indices, 0);
-  std::cout << "Sample median:\t" << "p[" << median << "] = " << points_[median][0] << std::endl;
+  std::cout << "Sample median:\t" << "p[" << median
+    << "] = " << points_[median][0] << std::endl;
 
   int_vec left, right;
   std::tie(left, right) = split(median, indices, 0);
 
+  root_ = std::make_unique<Node>(0);
+  root_->index_ = median;
+
+
+  if (!left.empty()) {
+    root_->left_ = std::make_unique<Node>(1);
+    ++num_nodes_;
+    job_q_.emplace(root_->left_.get(), left);
+  }
+
+  if (!right.empty()) {
+    root_->right_ = std::make_unique<Node>(1);
+    ++num_nodes_;
+    job_q_.emplace(root_->right_.get(), right);
+  }
+
+
+  const int num_threads = 1;
+  std::thread t[num_threads];
+  for (int i = 0; i < num_threads; ++i) {
+    t[i] = std::thread(&KDTree::grow_branch, this, i);
+  }
+  for (int i = 0; i < num_threads; ++i) {
+    t[i].join();
+  }
 }
 
 
@@ -49,22 +76,97 @@ std::pair<int_vec, int_vec> KDTree::split(int pivot_i, int_vec &indices, int dim
 }
 
 
-void KDTree::grow_branch(Job job) {
-  // sample some points to find median
-  int level = job.parent->level_ + 1;
-  int dim = level % dims_;
-  auto cur_node = std::make_unique<Node>(
-      job.parent, sample_median_index(job.indices, dim), level);
+void KDTree::grow_branch(int tid) {
 
-  //std::cout << "cur_node unique ptr size: " << sizeof(cur_node) << std::endl;
+  std::unique_lock<std::mutex> num_lock(num_mtx_, std::defer_lock);
 
-  // create node with median
+  for (;;) {
+    std::unique_lock lock(job_mtx_);
+    while (job_q_.empty()) {
 
-  // set parent as parent, and set parent's correct child as curnode
+      num_lock.lock();
+      if (num_nodes_ == points_.size()) {
+        num_lock.unlock();
+        return;
+      }
+      num_lock.unlock();
 
-  // filter into a left and right indices vector based on median
+      job_cv_.wait(lock);
+    }
 
-  // create two jobs with curnode as parent and with one of the sub indices
+    Job j = std::move(job_q_.front());
+    job_q_.pop();
 
-  // done
+    std::cout << "Job queue size: " << job_q_.size() << std::endl;
+
+    lock.unlock();
+    job_cv_.notify_all();
+
+
+
+
+    if (j.indices.size() == 0) continue;
+
+    if (j.indices.size() == 1) {
+      std::cout << "Case with 1 index only" << std::endl;
+      std::cout << "Value is " << j.indices[0] << std::endl;
+
+      j.node->index_ = j.indices[0];
+
+      std::cout << "num nodes: " << num_nodes_ << std::endl;
+      continue;
+    }
+
+    std::cout << "Thread " << tid << " processing job with "
+      << j.indices.size() << " indices" << std::endl;
+
+
+    int dim = j.node->level_ % dims_;
+
+    int median = sample_median_index(j.indices, dim);
+
+    std::cout << "Sample median:\t" << "p[" << median << "] = "
+      << points_[median][0] << std::endl;
+
+    int_vec left, right;
+    std::tie(left, right) = split(median, j.indices, 0);
+
+    for (auto i : left) { std::cout << i << " "; } std::cout << std::endl;
+    for (auto i : right) { std::cout << i << " "; } std::cout << std::endl;
+
+
+
+    if (!left.empty()) {
+      root_->left_ = std::make_unique<Node>(j.node->level_ + 1);
+      num_lock.lock();
+      ++num_nodes_;
+      num_lock.unlock();
+    }
+
+    if (!right.empty()) {
+      root_->right_ = std::make_unique<Node>(j.node->level_ + 1);
+      num_lock.lock();
+      ++num_nodes_;
+      num_lock.unlock();
+    }
+
+
+
+
+    lock.lock();
+    std::cout << "Thread " << tid << " acquired lock again " << std::endl;
+
+    if (!left.empty()) {
+      job_q_.emplace(root_->left_.get(), left);
+    }
+    if (!right.empty()) {
+      job_q_.emplace(root_->right_.get(), right);
+    }
+
+    std::cout << "num nodes: " << num_nodes_ << std::endl;
+    std::cout << "Job queue size: " << job_q_.size() << std::endl;
+    std::cout << "----------------------" << std::endl << std::endl;
+
+    lock.unlock();
+  }
 }

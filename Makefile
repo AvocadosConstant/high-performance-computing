@@ -1,7 +1,7 @@
 CC          = g++
 LD          = g++
 CFLAGS      = -g -std=c++17 -Wall -Wextra -pedantic -Iinclude
-LDFLAGS		= -Wl,--no-as-needed -ldl
+LDFLAGS		= -Wl,--no-as-needed -ldl -pthread
 
 PROG_NAME   = k-nn
 
@@ -14,7 +14,7 @@ all: $(PROG_NAME)
 
 $(PROG_NAME): $(BUILD_DIR)/main.o
 	@echo "\nLinking..."
-	$(CC) $(BUILD_DIR)/main.o $(BUILD_DIR)/tree.o -o $(PROG_NAME)
+	$(CC) $(BUILD_DIR)/main.o $(BUILD_DIR)/tree.o -o $(PROG_NAME) $(LDFLAGS)
 	@echo ""
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.cpp $(BUILD_DIR)/tree.o
