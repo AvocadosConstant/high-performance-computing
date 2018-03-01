@@ -7,9 +7,9 @@ KDTree::KDTree(points_t &p, int d, int num_threads) :
   std::iota(indices.begin(), indices.end(), 0);
 
 
+  // TODO Put this in a function for reuse with grow_branch()
+
   int median = sample_median_index(indices, 0);
-  //std::cout << "Sample median:\t" << "p[" << median
-  //  << "] = " << points_[median][0] << std::endl;
 
   int_vec left, right;
   std::tie(left, right) = split(median, indices, 0);
@@ -21,18 +21,14 @@ KDTree::KDTree(points_t &p, int d, int num_threads) :
   if (!left.empty()) {
     root_->left_ = std::make_unique<Node>(1);
     ++num_nodes_;
-    std::cout << "num nodes: " << num_nodes_ << std::endl;
     job_q_.emplace(root_->left_.get(), left);
   }
 
   if (!right.empty()) {
     root_->right_ = std::make_unique<Node>(1);
     ++num_nodes_;
-    std::cout << "num nodes: " << num_nodes_ << std::endl;
     job_q_.emplace(root_->right_.get(), right);
   }
-
-
 
   std::vector<std::thread> threads;
   for (int i = 0; i < num_threads; ++i) {
@@ -70,14 +66,17 @@ std::pair<int_vec, int_vec> KDTree::split(int pivot_i, int_vec &indices, int dim
   float pivot = points_[pivot_i][dim];
 
   for (auto i : indices) {
-    float cur = points_[i][dim];
-    if (cur < pivot) left.push_back(i);
-    else if (cur > pivot) right.push_back(i);
+    if (i != pivot_i) {
+      float cur = points_[i][dim];
+      if (cur < pivot) left.push_back(i);
+      else right.push_back(i);
+    }
   }
   assert(
-      (indices.size() == left.size() + right.size() + 1) || 
-      !(std::cerr << left.size() << " + "<< right.size() << " + 1 = " <<
-      (left.size() + right.size() + 1) << " =/= " << indices.size() << std::endl));
+      (indices.size() == left.size() + right.size() + 1) ||
+      !(std::cerr << left.size() << " + " << right.size() << " + 1 = " <<
+        (left.size() + right.size() + 1) << " =/= "
+        << indices.size() << std::endl));
   return std::pair<int_vec, int_vec>(left, right);
 }
 
@@ -87,68 +86,42 @@ void KDTree::grow_branch(int tid) {
   std::unique_lock<std::mutex> num_lock(num_mtx_, std::defer_lock);
 
   for (;;) {
-    std::unique_lock lock(job_mtx_);
+    std::unique_lock job_q_lock(job_mtx_);
     while (job_q_.empty()) {
 
       num_lock.lock();
       if (num_nodes_ == points_.size()) {
-        std::cout << "num nodes: " << num_nodes_ << std::endl;
+        // Exit condition
         num_lock.unlock();
         return;
       }
       num_lock.unlock();
 
-      job_cv_.wait(lock);
+      job_cv_.wait(job_q_lock);
     }
-
-
-    std::cout << "Job queue size: " << job_q_.size() << std::endl;
-    std::cout << "Popping from queue" << std::endl;
-
     Job j = std::move(job_q_.front());
     job_q_.pop();
 
-    std::cout << "Job queue size: " << job_q_.size() << std::endl;
 
-    lock.unlock();
+    job_q_lock.unlock();
     job_cv_.notify_all();
 
 
 
-
-    if (j.indices.size() == 0) continue;
-
+    assert(!j.indices.empty());
     if (j.indices.size() == 1) {
-      std::cout << "Leaf node" << std::endl;
-      std::cout << "Value is " << j.indices[0] << std::endl;
-
+      // Leaf node
+      // TODO Replace with leaf nodes of a larger size (10 nodes?)
       j.node->index_ = j.indices[0];
-
-      std::cout << "num nodes: " << num_nodes_ << std::endl;
-      std::cout << std::endl << "----------------" << std::endl;
       continue;
     }
 
-    std::cout << "Thread " << tid << " processing job with "
-      << j.indices.size() << " indices" << std::endl;
+    int median = sample_median_index(j.indices, j.node->level_ % dims);
 
-
-    int dim = j.node->level_ % dims_;
-
-    int median = sample_median_index(j.indices, dim);
-
-    std::cout << "Sample median:\t" << "p[" << median << "] = "
-      << points_[median][0] << std::endl;
-
-
-    std::cout << "Before declaring int_vec left, right" << std::endl;
+    // TODO Replace with std::partition
     int_vec left, right;
     std::tie(left, right) = split(median, j.indices, 0);
 
-    std::cout << "After call to split" << std::endl;
-
-    for (auto i : left) { std::cout << i << " "; } std::cout << std::endl;
-    for (auto i : right) { std::cout << i << " "; } std::cout << std::endl;
 
 
 
@@ -156,37 +129,27 @@ void KDTree::grow_branch(int tid) {
       j.node->left_ = std::make_unique<Node>(j.node->level_ + 1);
       num_lock.lock();
       ++num_nodes_;
-      std::cout << "num nodes: " << num_nodes_ << std::endl;
       num_lock.unlock();
     }
     if (!right.empty()) {
       j.node->right_ = std::make_unique<Node>(j.node->level_ + 1);
       num_lock.lock();
       ++num_nodes_;
-      std::cout << "num nodes: " << num_nodes_ << std::endl;
       num_lock.unlock();
     }
 
 
 
-    lock.lock();
-    std::cout << "Thread " << tid << " acquired lock again " << std::endl;
-
-    std::cout << "Job queue size: " << job_q_.size() << std::endl;
+    // Acquire lock again to add jobs
+    job_q_lock.lock();
 
     if (!left.empty()) {
-      std::cout << "Emplace in queue" << std::endl;
       job_q_.emplace(j.node->left_.get(), left);
-      std::cout << "Job queue size: " << job_q_.size() << std::endl;
     }
     if (!right.empty()) {
-      std::cout << "Emplace in queue" << std::endl;
       job_q_.emplace(j.node->right_.get(), right);
-      std::cout << "Job queue size: " << job_q_.size() << std::endl;
     }
 
-    std::cout << "----------------------" << std::endl << std::endl;
-
-    lock.unlock();
+    job_q_lock.unlock();
   }
 }
