@@ -40,10 +40,20 @@ KDTree::KDTree(points_t &p, int d, int num_threads) :
 }
 
 
-void KDTree::query(points_t &p, int d, int num_threads) {
+void KDTree::query(points_t *qs, int d, int k, int num_threads) {
   assert(d == dims_);
-  std::cout << p.size() << ", " << num_threads << std::endl;
+  queries_ = qs;
+  std::cout << queries_->size() << ", " << num_threads << std::endl;
 
+  next_batch_ = 0;
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < num_threads; ++i) {
+    threads.push_back(std::thread(&KDTree::process_query_batch, this, i));
+  }
+  for (int i = 0; i < num_threads; ++i) {
+    threads[i].join();
+  }
   // batch queries into chunks
   // each thread pulls first chunk free and processes, writing to memory
 }
@@ -91,19 +101,12 @@ std::pair<int_vec, int_vec> KDTree::split(int pivot_i, int_vec &indices, int dim
 
 void KDTree::grow_branch(int tid) {
 
-  std::unique_lock<std::mutex> num_lock(num_mtx_, std::defer_lock);
-
   for (;;) {
     std::unique_lock<std::mutex> job_q_lock(job_mtx_);
     while (job_q_.empty()) {
 
-      num_lock.lock();
-      if (num_nodes_ == points_.size()) {
-        // Exit condition
-        num_lock.unlock();
-        return;
-      }
-      num_lock.unlock();
+      // Exit condition
+      if (num_nodes_ == points_.size()) return;
 
       job_cv_.wait(job_q_lock);
     }
@@ -135,15 +138,11 @@ void KDTree::grow_branch(int tid) {
 
     if (!left.empty()) {
       j.node->left_ = std::make_unique<Node>(j.node->level_ + 1);
-      num_lock.lock();
       ++num_nodes_;
-      num_lock.unlock();
     }
     if (!right.empty()) {
       j.node->right_ = std::make_unique<Node>(j.node->level_ + 1);
-      num_lock.lock();
       ++num_nodes_;
-      num_lock.unlock();
     }
 
 
@@ -160,4 +159,9 @@ void KDTree::grow_branch(int tid) {
 
     job_q_lock.unlock();
   }
+}
+
+
+void KDTree::process_query_batch(int tid) {
+  std::cout << "process_query_batch thread " << tid << std::endl;
 }

@@ -42,6 +42,6 @@ int main(const int argc, char **argv) {
   std::cout << "\nParsing query data..." << std::endl;
   auto queries = parse_data(argv[3]);
 
-  tree.query(queries.points, training.n_dims, n_cores);
+  tree.query(&(queries.points), queries.n_dims, queries.k, n_cores);
 
 }
