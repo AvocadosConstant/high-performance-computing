@@ -86,7 +86,7 @@ void KDTree::grow_branch(int tid) {
   std::unique_lock<std::mutex> num_lock(num_mtx_, std::defer_lock);
 
   for (;;) {
-    std::unique_lock job_q_lock(job_mtx_);
+    std::unique_lock<std::mutex> job_q_lock(job_mtx_);
     while (job_q_.empty()) {
 
       num_lock.lock();
@@ -116,7 +116,7 @@ void KDTree::grow_branch(int tid) {
       continue;
     }
 
-    int median = sample_median_index(j.indices, j.node->level_ % dims);
+    int median = sample_median_index(j.indices, j.node->level_ % dims_);
 
     // TODO Replace with std::partition
     int_vec left, right;
