@@ -9,9 +9,8 @@
 #include <unistd.h>
 #include <iomanip>
 #include <vector>
-#include "tree.hpp"
 
-typedef std::vector<std::vector<float>> points_t;
+using points_t = std::vector<std::vector<float>>;
 
 void assert_openable_file(const std::string fn, int fd) {
   if (fd < 0) {

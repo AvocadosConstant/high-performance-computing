@@ -31,6 +31,8 @@ int main(const int argc, char **argv) {
 
   //std::cout << training.points.size() << " training points" << std::endl;
 
-  KDTree tree(training.points, training.n_dims);
+  points_t points = training.points;
+  uint64_t dims = training.n_dims;
+  KDTree tree(points, dims);
   //std::cout << "Tree size: " << sizeof(tree) << std::endl;
 }
