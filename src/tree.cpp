@@ -74,7 +74,10 @@ std::pair<int_vec, int_vec> KDTree::split(int pivot_i, int_vec &indices, int dim
     if (cur < pivot) left.push_back(i);
     else if (cur > pivot) right.push_back(i);
   }
-  assert(indices.size() == left.size() + right.size() + 1);
+  assert(
+      (indices.size() == left.size() + right.size() + 1) || 
+      !(std::cerr << left.size() << " + "<< right.size() << " + 1 = " <<
+      (left.size() + right.size() + 1) << " =/= " << indices.size() << std::endl));
   return std::pair<int_vec, int_vec>(left, right);
 }
 
@@ -150,14 +153,14 @@ void KDTree::grow_branch(int tid) {
 
 
     if (!left.empty()) {
-      root_->left_ = std::make_unique<Node>(j.node->level_ + 1);
+      j.node->left_ = std::make_unique<Node>(j.node->level_ + 1);
       num_lock.lock();
       ++num_nodes_;
       std::cout << "num nodes: " << num_nodes_ << std::endl;
       num_lock.unlock();
     }
     if (!right.empty()) {
-      root_->right_ = std::make_unique<Node>(j.node->level_ + 1);
+      j.node->right_ = std::make_unique<Node>(j.node->level_ + 1);
       num_lock.lock();
       ++num_nodes_;
       std::cout << "num nodes: " << num_nodes_ << std::endl;
@@ -173,12 +176,12 @@ void KDTree::grow_branch(int tid) {
 
     if (!left.empty()) {
       std::cout << "Emplace in queue" << std::endl;
-      job_q_.emplace(root_->left_.get(), left);
+      job_q_.emplace(j.node->left_.get(), left);
       std::cout << "Job queue size: " << job_q_.size() << std::endl;
     }
     if (!right.empty()) {
       std::cout << "Emplace in queue" << std::endl;
-      job_q_.emplace(root_->right_.get(), right);
+      job_q_.emplace(j.node->right_.get(), right);
       std::cout << "Job queue size: " << job_q_.size() << std::endl;
     }
 
