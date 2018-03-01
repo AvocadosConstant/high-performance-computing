@@ -1,14 +1,15 @@
 #include "tree.hpp"
 
-KDTree::KDTree(points_t &p, int d) : points_(p), dims_(d), num_nodes_(1) {
+KDTree::KDTree(points_t &p, int d, int num_threads) :
+    points_(p), dims_(d), num_nodes_(1) {
 
   int_vec indices(points_.size());
   std::iota(indices.begin(), indices.end(), 0);
 
 
   int median = sample_median_index(indices, 0);
-  std::cout << "Sample median:\t" << "p[" << median
-    << "] = " << points_[median][0] << std::endl;
+  //std::cout << "Sample median:\t" << "p[" << median
+  //  << "] = " << points_[median][0] << std::endl;
 
   int_vec left, right;
   std::tie(left, right) = split(median, indices, 0);
@@ -20,23 +21,25 @@ KDTree::KDTree(points_t &p, int d) : points_(p), dims_(d), num_nodes_(1) {
   if (!left.empty()) {
     root_->left_ = std::make_unique<Node>(1);
     ++num_nodes_;
+    std::cout << "num nodes: " << num_nodes_ << std::endl;
     job_q_.emplace(root_->left_.get(), left);
   }
 
   if (!right.empty()) {
     root_->right_ = std::make_unique<Node>(1);
     ++num_nodes_;
+    std::cout << "num nodes: " << num_nodes_ << std::endl;
     job_q_.emplace(root_->right_.get(), right);
   }
 
 
-  const int num_threads = 1;
-  std::thread t[num_threads];
+
+  std::vector<std::thread> threads;
   for (int i = 0; i < num_threads; ++i) {
-    t[i] = std::thread(&KDTree::grow_branch, this, i);
+    threads.push_back(std::thread(&KDTree::grow_branch, this, i));
   }
   for (int i = 0; i < num_threads; ++i) {
-    t[i].join();
+    threads[i].join();
   }
 }
 
@@ -86,6 +89,7 @@ void KDTree::grow_branch(int tid) {
 
       num_lock.lock();
       if (num_nodes_ == points_.size()) {
+        std::cout << "num nodes: " << num_nodes_ << std::endl;
         num_lock.unlock();
         return;
       }
@@ -93,6 +97,10 @@ void KDTree::grow_branch(int tid) {
 
       job_cv_.wait(lock);
     }
+
+
+    std::cout << "Job queue size: " << job_q_.size() << std::endl;
+    std::cout << "Popping from queue" << std::endl;
 
     Job j = std::move(job_q_.front());
     job_q_.pop();
@@ -108,12 +116,13 @@ void KDTree::grow_branch(int tid) {
     if (j.indices.size() == 0) continue;
 
     if (j.indices.size() == 1) {
-      std::cout << "Case with 1 index only" << std::endl;
+      std::cout << "Leaf node" << std::endl;
       std::cout << "Value is " << j.indices[0] << std::endl;
 
       j.node->index_ = j.indices[0];
 
       std::cout << "num nodes: " << num_nodes_ << std::endl;
+      std::cout << std::endl << "----------------" << std::endl;
       continue;
     }
 
@@ -128,8 +137,12 @@ void KDTree::grow_branch(int tid) {
     std::cout << "Sample median:\t" << "p[" << median << "] = "
       << points_[median][0] << std::endl;
 
+
+    std::cout << "Before declaring int_vec left, right" << std::endl;
     int_vec left, right;
     std::tie(left, right) = split(median, j.indices, 0);
+
+    std::cout << "After call to split" << std::endl;
 
     for (auto i : left) { std::cout << i << " "; } std::cout << std::endl;
     for (auto i : right) { std::cout << i << " "; } std::cout << std::endl;
@@ -140,31 +153,35 @@ void KDTree::grow_branch(int tid) {
       root_->left_ = std::make_unique<Node>(j.node->level_ + 1);
       num_lock.lock();
       ++num_nodes_;
+      std::cout << "num nodes: " << num_nodes_ << std::endl;
       num_lock.unlock();
     }
-
     if (!right.empty()) {
       root_->right_ = std::make_unique<Node>(j.node->level_ + 1);
       num_lock.lock();
       ++num_nodes_;
+      std::cout << "num nodes: " << num_nodes_ << std::endl;
       num_lock.unlock();
     }
-
 
 
 
     lock.lock();
     std::cout << "Thread " << tid << " acquired lock again " << std::endl;
 
+    std::cout << "Job queue size: " << job_q_.size() << std::endl;
+
     if (!left.empty()) {
+      std::cout << "Emplace in queue" << std::endl;
       job_q_.emplace(root_->left_.get(), left);
+      std::cout << "Job queue size: " << job_q_.size() << std::endl;
     }
     if (!right.empty()) {
+      std::cout << "Emplace in queue" << std::endl;
       job_q_.emplace(root_->right_.get(), right);
+      std::cout << "Job queue size: " << job_q_.size() << std::endl;
     }
 
-    std::cout << "num nodes: " << num_nodes_ << std::endl;
-    std::cout << "Job queue size: " << job_q_.size() << std::endl;
     std::cout << "----------------------" << std::endl << std::endl;
 
     lock.unlock();

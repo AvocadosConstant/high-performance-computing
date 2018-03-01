@@ -44,7 +44,7 @@ struct Job {
 
 class KDTree {
   public:
-    KDTree(points_t &p, int d);
+    KDTree(points_t &p, int d, int num_threads);
 
   private:
     std::unique_ptr<Node> root_;

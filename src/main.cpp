@@ -21,8 +21,7 @@ void assert_usage(int argc) {
 int main(const int argc, char **argv) {
   assert_usage(argc);
 
-  //int n_cores = std::stoi(argv[1]);
-  //std::cout << "Running with " << n_cores << " cores." << std::endl;
+  int n_cores = std::stoi(argv[1]);
 
   auto training = parse_data(argv[2]);
   auto queries = parse_data(argv[3]);
@@ -33,7 +32,7 @@ int main(const int argc, char **argv) {
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  KDTree tree(points, dims);
+  KDTree tree(points, dims, n_cores);
 
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> dt = stop - start;
