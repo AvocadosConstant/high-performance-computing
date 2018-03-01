@@ -1,4 +1,5 @@
 #include <vector>
+#include <chrono>
 #include "reader.hpp"
 #include "ingest.hpp"
 #include "tree.hpp"
@@ -26,13 +27,16 @@ int main(const int argc, char **argv) {
   auto training = parse_data(argv[2]);
   auto queries = parse_data(argv[3]);
 
-  //print_data(training);
-  //print_data(queries);
-
-  //std::cout << training.points.size() << " training points" << std::endl;
-
   points_t points = training.points;
   uint64_t dims = training.n_dims;
+
+
+  auto start = std::chrono::high_resolution_clock::now();
+
   KDTree tree(points, dims);
-  //std::cout << "Tree size: " << sizeof(tree) << std::endl;
+
+  auto stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> dt = stop - start;
+
+  std::cout << "Tree building took " << dt.count() << std::endl;
 }
