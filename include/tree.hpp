@@ -18,7 +18,7 @@ using points_t = std::vector<std::vector<float>>;
 using int_vec = std::vector<int>;
 
 const int MIN_SAMPLE_SIZE = 80;
-const int BATCH_SIZE = 5;
+const int BATCH_SIZE = 7;
 
 
 struct Node {

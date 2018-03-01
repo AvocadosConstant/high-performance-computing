@@ -163,5 +163,17 @@ void KDTree::grow_branch(int tid) {
 
 
 void KDTree::process_query_batch(int tid) {
-  std::cout << "process_query_batch thread " << tid << std::endl;
+  for (;;) {
+    size_t batch_start = next_batch_;
+    do {
+      if (batch_start >= queries_->size()) return;
+    } while (!std::atomic_compare_exchange_weak(
+      &next_batch_, &batch_start, batch_start + BATCH_SIZE));
+
+
+    std::cout << "Thread " << tid << " handling batch " <<
+      batch_start << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
 }
