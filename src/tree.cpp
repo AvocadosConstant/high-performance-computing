@@ -40,6 +40,14 @@ KDTree::KDTree(points_t &p, int d, int num_threads) :
 }
 
 
+void KDTree::query(points_t &p, int d, int num_threads) {
+  assert(d == dims_);
+  std::cout << p.size() << ", " << num_threads << std::endl;
+
+  // batch queries into chunks
+  // each thread pulls first chunk free and processes, writing to memory
+}
+
 
 ////////////////////////
 // Private Functions //

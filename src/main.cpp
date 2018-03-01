@@ -26,20 +26,22 @@ int main(const int argc, char **argv) {
   std::cout << "\nParsing training data..." << std::endl;
   auto training = parse_data(argv[2]);
 
-  std::cout << "\nParsing query data..." << std::endl;
-  auto queries = parse_data(argv[3]);
-
-  points_t points = training.points;
-  uint64_t dims = training.n_dims;
-
   std::cout << "\nBuilding tree..." << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
 
-  KDTree tree(points, dims, n_cores);
+  KDTree tree(training.points, training.n_dims, n_cores);
 
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> dt = stop - start;
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
 
   std::cout << "\nTree building took " << ms.count() << " ms."<< std::endl;
+
+
+
+  std::cout << "\nParsing query data..." << std::endl;
+  auto queries = parse_data(argv[3]);
+
+  tree.query(queries.points, training.n_dims, n_cores);
+
 }
