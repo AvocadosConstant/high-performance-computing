@@ -13,15 +13,19 @@ BIN_DIR     = .
 all: $(PROG_NAME)
 
 $(PROG_NAME): $(BUILD_DIR)/main.o
-	$(CC) main.o tree.o -o $(PROG_NAME)
+	@echo "\nLinking..."
+	$(CC) $(BUILD_DIR)/main.o $(BUILD_DIR)/tree.o -o $(PROG_NAME)
+	@echo ""
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.cpp $(BUILD_DIR)/tree.o
-	@echo "Compiling main..."
-	$(CC) -c $(CFLAGS) $(SRC_DIR)/main.cpp
+	@echo "\nCompiling main..."
+	$(CC) -c $< -o $@ $(CFLAGS)
+	@echo ""
 
 $(BUILD_DIR)/tree.o: $(SRC_DIR)/tree.cpp
-	@echo "Compiling tree..."
-	$(CC) -c $(CFLAGS) $(SRC_DIR)/tree.cpp
+	@echo "\nCompiling tree..."
+	$(CC) -c $< -o $@ $(CFLAGS)
+	@echo ""
 
 clean:
 	@echo "\nCleaning..."
