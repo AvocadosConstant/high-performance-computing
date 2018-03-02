@@ -48,6 +48,9 @@ void KDTree::query(points_t *qs, int d, int k, int num_threads) {
 
   next_batch_ = 0;
 
+  results_.resize(queries_->size() * k);
+  //std::cout << "results_.size() = " << results_.size() << std::endl;
+
   std::vector<std::thread> threads;
   for (int i = 0; i < num_threads; ++i) {
     threads.push_back(std::thread(&KDTree::process_query_batch, this, i, k));
@@ -55,6 +58,30 @@ void KDTree::query(points_t *qs, int d, int k, int num_threads) {
   for (int i = 0; i < num_threads; ++i) {
     threads[i].join();
   }
+
+}
+
+void KDTree::write(std::string results_file, uint64_t tid, uint64_t qid, uint64_t nqs, uint64_t k) {
+
+  std::ofstream file;
+  file.open(results_file, std::ios_base::binary);
+  assert(file.is_open());
+
+  file.write("RESULT", 8);
+  file.write((char*) &tid, 8);
+  file.write((char*) &qid, 8);
+  file.write((char*) &qid + 1, 8);
+  file.write((char*) &nqs, 8);
+  file.write((char*) &dims_, 8);
+  file.write((char*) &k, 8);
+
+  for (auto result : results_) {
+    for (auto val : result) {
+      file.write((char*) &val, sizeof(float));
+    }
+  }
+
+  file.close();
 }
 
 
@@ -192,12 +219,10 @@ void KDTree::process_query_batch(int tid, int k) {
       /*
       std::cout << "result->index_: " << result->index_ << std::endl;
       std::cout << "distance: " << distance((*queries_)[i], node_val(result)) << std::endl;
-
-      std::cout << "Printing heap!" << std::endl;
-      for (auto e : heap) {
-        std::cout << e->index_ << "\tdistance: " << distance((*queries_)[i], node_val(e)) << std::endl;
-      }
       */
+      for (size_t j = 0; j < heap.size(); j++) {
+        results_[i * k + j] = node_val(heap[j]);
+      }
     }
   }
 }

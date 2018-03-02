@@ -14,6 +14,7 @@
 #include <atomic>
 #include <cmath>
 #include <sstream>
+#include <fstream>
 
 
 using points_t = std::vector<std::vector<float>>;
@@ -50,6 +51,7 @@ class KDTree {
   public:
     KDTree(points_t &p, int d, int num_threads);
     void query(points_t *qs, int d, int k, int num_threads);
+    void write(std::string results_file, uint64_t tid, uint64_t qid, uint64_t nqs, uint64_t k);
 
   private:
     std::unique_ptr<Node> root_;
@@ -63,6 +65,7 @@ class KDTree {
     std::atomic<size_t> num_nodes_;
     std::atomic<size_t> next_batch_;
 
+    points_t results_;
 
     int sample_median_index(const int_vec &indices, const int dim);
 

@@ -23,6 +23,9 @@ int main(const int argc, char **argv) {
 
   int n_cores = std::stoi(argv[1]);
 
+
+  // TRAINING
+
   std::cout << "\nParsing training data..." << std::endl;
   auto training = parse_data(argv[2]);
 
@@ -39,18 +42,27 @@ int main(const int argc, char **argv) {
 
 
 
+  // QUERYING
+
   std::cout << "\nParsing query data..." << std::endl;
   auto queries = parse_data(argv[3]);
 
-
-
   start = std::chrono::high_resolution_clock::now();
-
   tree.query(&(queries.points), queries.n_dims, queries.k, n_cores);
-
   stop = std::chrono::high_resolution_clock::now();
+
   dt = stop - start;
   ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
 
   std::cout << "\nQuery parsing took " << ms.count() << " ms."<< std::endl;
+
+
+
+  // WRITING RESULTS
+
+  std::cout << "\nWriting results to file " << argv[4] << "." << std::endl;
+  tree.write(argv[4], training.id, queries.id, queries.n_points, queries.k);
+  std::cout << "\nResults have been written to " << argv[4] << "." << std::endl;
+
+  return 0;
 }
