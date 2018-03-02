@@ -126,6 +126,7 @@ std::pair<int_vec, int_vec> KDTree::split(int pivot_i, int_vec &indices, int dim
 
 
 void KDTree::grow_branch(int tid) {
+  assert(tid >= 0);
 
   for (;;) {
     std::unique_lock<std::mutex> job_q_lock(job_mtx_);
@@ -196,6 +197,8 @@ std::vector<float> KDTree::node_val(Node *node) {
 
 
 void KDTree::process_query_batch(int tid, int k) {
+  assert(tid >= 0);
+
   for (;;) {
     size_t batch_start = next_batch_;
     do {
@@ -215,7 +218,7 @@ void KDTree::process_query_batch(int tid, int k) {
       //  << "\tquery " << i << std::endl;
 
       std::vector<Node*> heap;
-      auto result = process_query(root_.get(), i, 0, k, heap);
+      process_query(root_.get(), i, 0, k, heap);
       /*
       std::cout << "result->index_: " << result->index_ << std::endl;
       std::cout << "distance: " << distance((*queries_)[i], node_val(result)) << std::endl;
@@ -309,9 +312,9 @@ Node *KDTree::process_query(Node *node,
 
   //std::cout << "Checking if split node or subtree is closer" << std::endl;
 
-  if (heap.size() < k) {
+  if (heap.size() < (unsigned)k) {
     heap.push_back(node);
-  } else if (heap.size() == k) {
+  } else if (heap.size() == (unsigned)k) {
     if (node == closer_node(target, node, heap[0])) {
       heap[0] = node;
     }
