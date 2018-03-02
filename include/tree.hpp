@@ -79,7 +79,7 @@ class KDTree {
 
     Node *closer_node(std::vector<float> target, Node *a, Node *b);
 
-    Node *process_query(Node *node, size_t qi, int depth, int k);
+    Node *process_query(Node *node, size_t qi, int depth, int k, std::vector<Node*> &heap);
 
 };
 

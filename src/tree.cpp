@@ -189,9 +189,17 @@ void KDTree::process_query_batch(int tid, int k) {
       //std::cout << "Thread " << tid << "\tBatch " << batch_start
       //  << "\tquery " << i << std::endl;
 
-      auto result = process_query(root_.get(), i, 0, k);
-      //std::cout << "result->index_: " << result->index_ << std::endl;
-      //std::cout << "distance: " << distance((*queries_)[i], node_val(result)) << std::endl;
+      std::vector<Node*> heap;
+      auto result = process_query(root_.get(), i, 0, k, heap);
+      /*
+      std::cout << "result->index_: " << result->index_ << std::endl;
+      std::cout << "distance: " << distance((*queries_)[i], node_val(result)) << std::endl;
+
+      std::cout << "Printing heap!" << std::endl;
+      for (auto e : heap) {
+        std::cout << e->index_ << "\tdistance: " << distance((*queries_)[i], node_val(e)) << std::endl;
+      }
+      */
     }
   }
 }
@@ -228,26 +236,40 @@ Node *KDTree::closer_node(std::vector<float> target, Node *a, Node *b) {
 
 
 Node *KDTree::process_query(Node *node,
-    size_t qi, int depth, int k) {
+    size_t qi, int depth, int k, std::vector<Node*> &heap) {
+
 
   //std::cout << "\n\nin process_query()" << std::endl;
 
   if (!node) return nullptr;
 
+  std::vector<float> target = (*queries_)[qi];
+  //for (auto f : target) std::cout << f << " ";
+  //std::cout << std::endl;
+
+  auto comp = [&](Node *a, Node *b){
+    if (a == closer_node(target, a, b)) {
+      return true;
+    }
+    return false;
+  };
+
+
   if (!node->left_ && !node->right_) {
+    if (node == closer_node(target, node, heap[0])) {
+      heap[0] = node;
+    }
+    std::make_heap(heap.begin(), heap.end(), comp);
     return node;
   }
 
   //std::cout << "node->index_ = " << node->index_ << std::endl;
 
-  int dim = depth % k;
+  int dim = depth % dims_;
 
   Node *next_branch = nullptr;
   Node *oppo_branch = nullptr;
 
-  std::vector<float> target = (*queries_)[qi];
-  //for (auto f : target) std::cout << f << " ";
-  //std::cout << std::endl;
 
   std::ostringstream os;
 
@@ -257,15 +279,6 @@ Node *KDTree::process_query(Node *node,
      << "\ttarget[dim] = " << target[dim]
      << "\tnode[dim] = " << node_val(node)[dim];
 
-
-  /*
-  if (node->left_) {
-    std::cout << "left branch node->index = " << node->left_.get()->index_ << std::endl;
-  }
-  if (node->right_) {
-    std::cout << "right branch node->index = " << node->right_.get()->index_ << std::endl;
-  }
-  */
 
   if (target[dim] < node_val(node)[dim]) {
     next_branch = node->left_.get();
@@ -279,9 +292,33 @@ Node *KDTree::process_query(Node *node,
   //std::cout << os.str();
 
   //std::cout << "Checking if split node or subtree is closer" << std::endl;
+  /*
   Node *best = closer_node(target,
       node,
-      process_query(next_branch, qi, depth + 1, k));
+      process_query(next_branch, qi, depth + 1, k, heap));
+      */
+
+  if (heap.size() < k) {
+    heap.push_back(node);
+  } else if (heap.size() == k) {
+    if (node == closer_node(target, node, heap[0])) {
+      heap[0] = node;
+    }
+  }
+
+  std::make_heap(heap.begin(), heap.end(), comp);
+  /*
+  std::cout << "HEAP" << std::endl;
+  for (auto e : heap) {
+    std::cout << e->index_ << "\tdistance: " << distance(target, node_val(e)) << std::endl;
+  }
+  */
+
+  //std::cout << "heap size: " << heap.size() << std::endl;
+
+  Node *best = closer_node(target,
+      node,
+      process_query(next_branch, qi, depth + 1, k, heap));
 
   //std::cout << "after first closer check, best->index_ = " << best->index_ << std::endl;
 
@@ -293,12 +330,23 @@ Node *KDTree::process_query(Node *node,
     //std::cout << "Opposite branch could be better!" << std::endl;
     best = closer_node(target,
         best,
-        process_query(oppo_branch, qi, depth + 1, k));
+        process_query(oppo_branch, qi, depth + 1, k, heap));
 
     //std::cout << "after oppo closer check, best->index_ = " << best->index_ << std::endl;
   }
 
-  dist_to_best = distance(target, node_val(best));
+  /*
+  if (best == closer_node(target, best, heap[0])) {
+    heap[0] = node;
+  }
+  std::make_heap(heap.begin(), heap.end(), comp);
+  std::cout << "HEAP" << std::endl;
+  for (auto e : heap) {
+    std::cout << e->index_ << "\tdistance: " << distance(target, node_val(e)) << std::endl;
+  }
+  */
+
+  //dist_to_best = distance(target, node_val(best));
   //std::cout << "Best dist so far: " << dist_to_best << std::endl;
   return best;
 }
