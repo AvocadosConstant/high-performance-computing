@@ -12,6 +12,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <cmath>
+#include <sstream>
 
 
 using points_t = std::vector<std::vector<float>>;
@@ -69,7 +71,15 @@ class KDTree {
     //TODO rename this godawful function
     void grow_branch(int tid);
 
-    void process_query_batch(int tid);
+    std::vector<float> node_val(Node *node);
+
+    void process_query_batch(int tid, int k);
+
+    float distance(std::vector<float> a, std::vector<float> b);
+
+    Node *closer_node(std::vector<float> target, Node *a, Node *b);
+
+    Node *process_query(Node *node, size_t qi, int depth, int k);
 
 };
 
