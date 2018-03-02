@@ -41,9 +41,10 @@ KDTree::KDTree(points_t &p, int d, int num_threads) :
 
 
 void KDTree::query(points_t *qs, int d, int k, int num_threads) {
+  // batch queries into chunks
+  // each thread pulls first chunk free and processes, writing to memory
   assert(d == dims_);
   queries_ = qs;
-  //std::cout << queries_->size() << ", " << num_threads << std::endl;
 
   next_batch_ = 0;
 
@@ -54,8 +55,6 @@ void KDTree::query(points_t *qs, int d, int k, int num_threads) {
   for (int i = 0; i < num_threads; ++i) {
     threads[i].join();
   }
-  // batch queries into chunks
-  // each thread pulls first chunk free and processes, writing to memory
 }
 
 
@@ -165,7 +164,6 @@ void KDTree::grow_branch(int tid) {
 
 
 std::vector<float> KDTree::node_val(Node *node) {
-  //std::cout << "In node_val(), node->index = " << node->index_ << std::endl;
   return points_[node->index_];
 }
 
@@ -217,8 +215,6 @@ float KDTree::distance(std::vector<float> a, std::vector<float> b) {
 }
 
 Node *KDTree::closer_node(std::vector<float> target, Node *a, Node *b) {
-  //std::cout << "In closer node func" << std::endl;
-
   if (!a) {
     return b;
   } else if (!b) {
@@ -238,14 +234,11 @@ Node *KDTree::closer_node(std::vector<float> target, Node *a, Node *b) {
 Node *KDTree::process_query(Node *node,
     size_t qi, int depth, int k, std::vector<Node*> &heap) {
 
-
   //std::cout << "\n\nin process_query()" << std::endl;
 
   if (!node) return nullptr;
 
   std::vector<float> target = (*queries_)[qi];
-  //for (auto f : target) std::cout << f << " ";
-  //std::cout << std::endl;
 
   auto comp = [&](Node *a, Node *b){
     if (a == closer_node(target, a, b)) {
@@ -262,8 +255,6 @@ Node *KDTree::process_query(Node *node,
     std::make_heap(heap.begin(), heap.end(), comp);
     return node;
   }
-
-  //std::cout << "node->index_ = " << node->index_ << std::endl;
 
   int dim = depth % dims_;
 
@@ -292,11 +283,6 @@ Node *KDTree::process_query(Node *node,
   //std::cout << os.str();
 
   //std::cout << "Checking if split node or subtree is closer" << std::endl;
-  /*
-  Node *best = closer_node(target,
-      node,
-      process_query(next_branch, qi, depth + 1, k, heap));
-      */
 
   if (heap.size() < k) {
     heap.push_back(node);
@@ -305,34 +291,20 @@ Node *KDTree::process_query(Node *node,
       heap[0] = node;
     }
   }
-
   std::make_heap(heap.begin(), heap.end(), comp);
-  /*
-  std::cout << "HEAP" << std::endl;
-  for (auto e : heap) {
-    std::cout << e->index_ << "\tdistance: " << distance(target, node_val(e)) << std::endl;
-  }
-  */
-
-  //std::cout << "heap size: " << heap.size() << std::endl;
 
   Node *best = closer_node(target,
       node,
       process_query(next_branch, qi, depth + 1, k, heap));
 
-  //std::cout << "after first closer check, best->index_ = " << best->index_ << std::endl;
-
   auto dist_to_best = distance(target, node_val(best));
   auto dist_to_split = std::abs(target[dim] - node_val(node)[dim]);
 
-  //std::cout << "Checking if need to check oppo branch" << std::endl;
   if (dist_to_best > dist_to_split) {
     //std::cout << "Opposite branch could be better!" << std::endl;
     best = closer_node(target,
         best,
         process_query(oppo_branch, qi, depth + 1, k, heap));
-
-    //std::cout << "after oppo closer check, best->index_ = " << best->index_ << std::endl;
   }
 
   /*
@@ -346,7 +318,5 @@ Node *KDTree::process_query(Node *node,
   }
   */
 
-  //dist_to_best = distance(target, node_val(best));
-  //std::cout << "Best dist so far: " << dist_to_best << std::endl;
   return best;
 }
