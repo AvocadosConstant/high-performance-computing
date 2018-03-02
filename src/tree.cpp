@@ -123,6 +123,7 @@ void KDTree::grow_branch(int tid) {
     if (j.indices.size() == 1) {
       // Leaf node
       // TODO Replace with leaf nodes of a larger size (10 nodes?)
+
       j.node->index_ = j.indices[0];
       continue;
     }
@@ -135,6 +136,7 @@ void KDTree::grow_branch(int tid) {
 
 
 
+    j.node->index_ = median;
 
     if (!left.empty()) {
       j.node->left_ = std::make_unique<Node>(j.node->level_ + 1);
@@ -163,6 +165,7 @@ void KDTree::grow_branch(int tid) {
 
 
 std::vector<float> KDTree::node_val(Node *node) {
+  //std::cout << "In node_val(), node->index = " << node->index_ << std::endl;
   return points_[node->index_];
 }
 
@@ -187,6 +190,8 @@ void KDTree::process_query_batch(int tid, int k) {
       //  << "\tquery " << i << std::endl;
 
       auto result = process_query(root_.get(), i, 0, k);
+      //std::cout << "result->index_: " << result->index_ << std::endl;
+      //std::cout << "distance: " << distance((*queries_)[i], node_val(result)) << std::endl;
     }
   }
 }
@@ -204,6 +209,7 @@ float KDTree::distance(std::vector<float> a, std::vector<float> b) {
 }
 
 Node *KDTree::closer_node(std::vector<float> target, Node *a, Node *b) {
+  //std::cout << "In closer node func" << std::endl;
 
   if (!a) {
     return b;
@@ -224,18 +230,24 @@ Node *KDTree::closer_node(std::vector<float> target, Node *a, Node *b) {
 Node *KDTree::process_query(Node *node,
     size_t qi, int depth, int k) {
 
+  //std::cout << "\n\nin process_query()" << std::endl;
+
   if (!node) return nullptr;
+
+  if (!node->left_ && !node->right_) {
+    return node;
+  }
+
+  //std::cout << "node->index_ = " << node->index_ << std::endl;
 
   int dim = depth % k;
 
   Node *next_branch = nullptr;
   Node *oppo_branch = nullptr;
 
-  
   std::vector<float> target = (*queries_)[qi];
   //for (auto f : target) std::cout << f << " ";
   //std::cout << std::endl;
-
 
   std::ostringstream os;
 
@@ -244,6 +256,16 @@ Node *KDTree::process_query(Node *node,
      << "\tdim = " << dim
      << "\ttarget[dim] = " << target[dim]
      << "\tnode[dim] = " << node_val(node)[dim];
+
+
+  /*
+  if (node->left_) {
+    std::cout << "left branch node->index = " << node->left_.get()->index_ << std::endl;
+  }
+  if (node->right_) {
+    std::cout << "right branch node->index = " << node->right_.get()->index_ << std::endl;
+  }
+  */
 
   if (target[dim] < node_val(node)[dim]) {
     next_branch = node->left_.get();
@@ -254,25 +276,29 @@ Node *KDTree::process_query(Node *node,
     oppo_branch = node->left_.get();
     os << "\tNext branch is right\n";
   }
-  std::cout << os.str();
+  //std::cout << os.str();
 
-  std::cout << "Checking if split node or subtree is closer" << std::endl;
+  //std::cout << "Checking if split node or subtree is closer" << std::endl;
   Node *best = closer_node(target,
       node,
       process_query(next_branch, qi, depth + 1, k));
 
+  //std::cout << "after first closer check, best->index_ = " << best->index_ << std::endl;
+
   auto dist_to_best = distance(target, node_val(best));
   auto dist_to_split = std::abs(target[dim] - node_val(node)[dim]);
 
-  std::cout << "Checking if need to check oppo branch" << std::endl;
+  //std::cout << "Checking if need to check oppo branch" << std::endl;
   if (dist_to_best > dist_to_split) {
-    std::cout << "Opposite branch could be better!" << std::endl;
-    Node *best = closer_node(target,
+    //std::cout << "Opposite branch could be better!" << std::endl;
+    best = closer_node(target,
         best,
         process_query(oppo_branch, qi, depth + 1, k));
+
+    //std::cout << "after oppo closer check, best->index_ = " << best->index_ << std::endl;
   }
 
   dist_to_best = distance(target, node_val(best));
-  std::cout << "Best dist so far: " << dist_to_best << std::endl;
+  //std::cout << "Best dist so far: " << dist_to_best << std::endl;
   return best;
 }

@@ -42,6 +42,15 @@ int main(const int argc, char **argv) {
   std::cout << "\nParsing query data..." << std::endl;
   auto queries = parse_data(argv[3]);
 
+
+
+  start = std::chrono::high_resolution_clock::now();
+
   tree.query(&(queries.points), queries.n_dims, queries.k, n_cores);
 
+  stop = std::chrono::high_resolution_clock::now();
+  dt = stop - start;
+  ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
+
+  std::cout << "\nQuery parsing took " << ms.count() << " ms."<< std::endl;
 }
