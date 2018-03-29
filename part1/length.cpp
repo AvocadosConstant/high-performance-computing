@@ -23,7 +23,6 @@ main() {
 
     alignas(32) static float w_a[N], x_a[N], y_a[N], z_a[N];
     alignas(32) static float w_b[N], x_b[N], y_b[N], z_b[N];
-    alignas(32) static float w_r[N], x_r[N], y_r[N], z_r[N];
 
     /*
      * Generate data.
@@ -43,7 +42,7 @@ main() {
     }
 
     /*
-     * Sequential.
+     * Sequential
      */
 
     static float l_s[N];
@@ -58,26 +57,39 @@ main() {
         }
     };
 
-    std::cout << "Sequential: " << (N/time(seq))/1000000 << " Mops/s" << std::endl;
+    std::cout << "Sequential: \t" << (N/time(seq))/1000000 << " Mops/s" << std::endl;
 
     /*
-    alignas(32) static float l_v[N];
+     * Parallel
+     */
+    alignas(32) static float l_p[N];
     auto vec = [&]() {
         for (int i = 0; i < N/8; i++) {
-            __m256 ymm_x = _mm256_load_ps(x + 8*i);
-            __m256 ymm_y = _mm256_load_ps(y + 8*i);
-            __m256 ymm_z = _mm256_load_ps(z + 8*i);
-            __m256 ymm_l = _mm256_sqrt_ps(_mm256_mul_ps(ymm_x, ymm_x) + _mm256_mul_ps(ymm_y, ymm_y) + _mm256_mul_ps(ymm_z, ymm_z));
-            _mm256_store_ps(l_v + 8*i, ymm_l);
+            __m256 mm_w_a = _mm256_load_ps(w_a + 8*i);
+            __m256 mm_x_a = _mm256_load_ps(x_a + 8*i);
+            __m256 mm_y_a = _mm256_load_ps(y_a + 8*i);
+            __m256 mm_z_a = _mm256_load_ps(z_a + 8*i);
+
+            __m256 mm_w_b = _mm256_load_ps(w_b + 8*i);
+            __m256 mm_x_b = _mm256_load_ps(x_b + 8*i);
+            __m256 mm_y_b = _mm256_load_ps(y_b + 8*i);
+            __m256 mm_z_b = _mm256_load_ps(z_b + 8*i);
+
+            __m256 mm_l = _mm256_sqrt_ps(
+                _mm256_mul_ps(mm_w_a - mm_w_b, mm_w_a - mm_w_b) +
+                _mm256_mul_ps(mm_x_a - mm_x_b, mm_x_a - mm_x_b) +
+                _mm256_mul_ps(mm_y_a - mm_y_b, mm_y_a - mm_y_b) +
+                _mm256_mul_ps(mm_z_a - mm_z_b, mm_z_a - mm_z_b));
+
+            _mm256_store_ps(l_p + 8*i, mm_l);
         }
     };
 
-    std::cout << "Vector: " << (N/time(vec))/1000000 << " Mops/s" << std::endl;
+    std::cout << "Parallel: \t" << (N/time(vec))/1000000 << " Mops/s" << std::endl;
 
     for (int i = 0; i < N; i++) {
-        if (l_s[i] - l_v[i] != 0) {
+        if (l_s[i] - l_p[i] != 0) {
             assert(false);
         }
     }
-    */
 }
