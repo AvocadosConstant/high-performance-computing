@@ -21,7 +21,9 @@ time(const std::function<void ()> &f) {
 int
 main() {
 
-    alignas(32) static float x[N], y[N], z[N];
+    alignas(32) static float w_a[N], x_a[N], y_a[N], z_a[N];
+    alignas(32) static float w_b[N], x_b[N], y_b[N], z_b[N];
+    alignas(32) static float w_r[N], x_r[N], y_r[N], z_r[N];
 
     /*
      * Generate data.
@@ -30,9 +32,14 @@ main() {
     std::default_random_engine eng;
     std::uniform_real_distribution<float> dist(-1, 1);
     for (int i = 0; i < N; i++) {
-        x[i] = dist(eng);
-        y[i] = dist(eng);
-        z[i] = dist(eng);
+        w_a[i] = dist(eng);
+        x_a[i] = dist(eng);
+        y_a[i] = dist(eng);
+        z_a[i] = dist(eng);
+        w_b[i] = dist(eng);
+        x_b[i] = dist(eng);
+        y_b[i] = dist(eng);
+        z_b[i] = dist(eng);
     }
 
     /*
@@ -42,12 +49,18 @@ main() {
     static float l_s[N];
     auto seq = [&]() {
         for (int i = 0; i < N; i++) {
-            l_s[i] = std::sqrt(x[i]*x[i] + y[i]*y[i] + z[i]*z[i]);
+            l_s[i] = std::sqrt(
+              (w_a[i] - w_b[i]) * (w_a[i] - w_b[i]) +
+              (x_a[i] - x_b[i]) * (x_a[i] - x_b[i]) +
+              (y_a[i] - y_b[i]) * (y_a[i] - y_b[i]) +
+              (z_a[i] - z_b[i]) * (z_a[i] - z_b[i])
+            );
         }
     };
 
     std::cout << "Sequential: " << (N/time(seq))/1000000 << " Mops/s" << std::endl;
 
+    /*
     alignas(32) static float l_v[N];
     auto vec = [&]() {
         for (int i = 0; i < N/8; i++) {
@@ -66,4 +79,5 @@ main() {
             assert(false);
         }
     }
+    */
 }
