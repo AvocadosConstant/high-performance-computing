@@ -10,34 +10,28 @@
 #include <cmath>
 #include <iomanip>
 
-//const int N = 10;
 const int N = 100'000;
-//const int N = 100'000'000;
 const int MIN_DIM = 2;
-const int MAX_DIM = 16;
-const int HIST_BUCKETS = 10;
-
-double time(const std::function<void ()> &f) {
-  f(); // Run once to warmup.
-  // Now time it for real.
-  auto start = std::chrono::system_clock::now();
-  f();
-  auto stop = std::chrono::system_clock::now();
-  return std::chrono::duration<double>(stop - start).count();
-}
+const int MAX_DIM = 50;
+const int HIST_BUCKETS = 100;
+const int THREADS = 16;
 
 std::vector<std::vector<int>> generate_histograms(bool parallel) {
   std::vector<std::vector<int>> hists;
-  std::vector<std::vector<float>> points(N, std::vector<float>(MAX_DIM + 2));
-  std::vector<float> dists(N);
   std::vector<int> hist(HIST_BUCKETS);
 
-  std::minstd_rand eng;
-  std::uniform_real_distribution<float> dist(-1, 1);
+  // Need MAX_DIM + 2 size for points due to sampling formula from
+  // section 3.2 of http://compneuro.uwaterloo.ca/files/publications/voelker.2017.pdf
+  std::vector<std::vector<float>> points(N, std::vector<float>(MAX_DIM + 2));
+  std::vector<float> dists(N);
 
-  for (int dims = 2; dims <= 16; dims++) {
+  std::minstd_rand eng;
+  std::normal_distribution<float> dist(0, 1);
+
+  for (int dims = MIN_DIM; dims <= MAX_DIM; dims++) {
     std::fill(dists.begin(), dists.end(), 0);
 
+    #pragma omp parallel for num_threads(THREADS) schedule(guided) private(dist, eng, hist) shared(hists, points, dists) if(parallel)
     for (std::size_t i = 0; i < points.size(); i++) {
       auto &pt = points[i];
 
@@ -45,6 +39,7 @@ std::vector<std::vector<int>> generate_histograms(bool parallel) {
       float norm = 0;
       for (int dim = 0; dim < dims + 2; dim++) {
         pt[dim] = dist(eng);
+        //std::cout << pt[dim] << std::endl;
         norm += pt[dim] * pt[dim];
       }
 
@@ -70,8 +65,8 @@ std::vector<std::vector<int>> generate_histograms(bool parallel) {
 
     std::fill(hist.begin(), hist.end(), 0);
     // Histogram and stuff and graphs
-    for (auto dist : dists) {
-      hist[(int) (dist * hist.size())] += 1;
+    for (size_t i = 0; i < dists.size(); i++) {
+      hist[(int) (dists[i] * hist.size())] += 1;
     }
 
     hists.push_back(hist);
@@ -79,15 +74,36 @@ std::vector<std::vector<int>> generate_histograms(bool parallel) {
   return hists;
 }
 
-int main() {
-  auto hists = generate_histograms(true);
-
-  for (int dims = 2; dims <= 16; dims++) {
+void print_hists(std::vector<std::vector<int>> hists) {
+  for (int dims = MIN_DIM; dims <= MAX_DIM; dims++) {
     std::cout << "\n\t" << dims << "-D" << std::endl;
     std::cout << "Histogram with " << HIST_BUCKETS << " buckets" << std::endl;
+    std::cout << "Bucket\t\tPercentage\tCount" << std::endl;
     for (size_t i = 0; i < hists[dims-2].size(); i++) {
       std::cout.precision(2);
-      std::cout << std::fixed << std::setw(2) << ((float) i) / hists[dims-2].size() << "\t\t" << (int)(100.0 * hists[dims-2][i] / N) << "%" << std::endl;
+      std::cout << std::fixed
+        << ((float) i) / hists[dims-2].size() << "\t\t"
+        << (int)(100.0 * hists[dims-2][i] / N) << "%\t\t"
+        << hists[dims-2][i] << std::endl;
     }
   }
+}
+
+int main() {
+  // warmup
+  generate_histograms(true);
+
+  auto start = std::chrono::system_clock::now();
+  auto hists = generate_histograms(true);
+  auto stop = std::chrono::system_clock::now();
+  std::cout << "Parallel:\t"
+    << std::chrono::duration<double>(stop - start).count() << "s" << std::endl;
+
+  start = std::chrono::system_clock::now();
+  generate_histograms(false);
+  stop = std::chrono::system_clock::now();
+  std::cout << "Serial:\t\t"
+    << std::chrono::duration<double>(stop - start).count() << "s" << std::endl;
+
+  print_hists(hists);
 }
